@@ -15,7 +15,7 @@ const Register = () => {
         try {
             const response = await auth.register(name, email, password);
             localStorage.setItem('user_uid', response.data.uid);
-            localStorage.setItem('user_name', name);
+            localStorage.setItem('user_name', response.data.name);
             navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.error || 'Registration failed');

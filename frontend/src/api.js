@@ -17,12 +17,15 @@ export const auth = {
 export const projects = {
     create: (user_uid, name, description) => api.post('/projects/create', { user_uid, name, description }),
     list: (user_uid) => api.get(`/projects/list?user_uid=${user_uid}`),
+    getMembers: (project_uid) => api.get(`/projects/members?project_uid=${project_uid}`),
+    addMember: (project_uid, email) => api.post('/projects/add-member', { project_uid, email }),
 };
 
 export const tasks = {
     create: (project_uid, title, description, priority, assignee_uid) => api.post('/tasks/create', { project_uid, title, description, priority, assignee_uid }),
     list: (project_uid) => api.get(`/tasks/list?project_uid=${project_uid}`),
     updateStatus: (task_uid, status) => api.post('/tasks/update', { task_uid, status }),
+    delete: (task_uid) => api.post('/tasks/delete', { task_uid }),
 };
 
 export default api;

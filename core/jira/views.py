@@ -128,6 +128,59 @@ def get_projects(request):
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+def get_project_members(request):
+    if request.method == 'GET':
+        try:
+            project_uid = request.GET.get('project_uid')
+            if not project_uid:
+                return JsonResponse({'error': 'project_uid is required'}, status=400)
+
+            project = Project.nodes.get_or_none(uid=project_uid)
+            if not project:
+                return JsonResponse({'error': 'Project not found'}, status=404)
+            
+            members = []
+            for member in project.members.all():
+                members.append({
+                    'uid': member.uid,
+                    'name': member.name,
+                    'email': member.email
+                })
+            return JsonResponse({'members': members}, status=200)
+        except Exception as e:
+            print(f"Get Project Members Error: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+def add_project_member(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            project_uid = data.get('project_uid')
+            email = data.get('email')
+
+            if not project_uid or not email:
+                return JsonResponse({'error': 'Project UID and User Email are required'}, status=400)
+
+            project = Project.nodes.get_or_none(uid=project_uid)
+            if not project:
+                return JsonResponse({'error': 'Project not found'}, status=404)
+
+            user = User.nodes.get_or_none(email=email)
+            if not user:
+                return JsonResponse({'error': 'User with this email not found'}, status=404)
+
+            if project.members.is_connected(user):
+                return JsonResponse({'error': 'User is already a member of this project'}, status=400)
+
+            project.members.connect(user)
+            return JsonResponse({'message': 'Member added successfully'}, status=200)
+        except Exception as e:
+            print(f"Add Member Error: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
 @csrf_exempt
 def create_task(request):
     if request.method == 'POST':
@@ -215,5 +268,25 @@ def update_task_status(request):
                 return JsonResponse({'error': f'Invalid status: {new_status}. Must be one of TODO, IN_PROGRESS, DONE.'}, status=400)
         except Exception as e:
             print(f"Update Task Error: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+def delete_task(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            task_uid = data.get('task_uid')
+            if not task_uid:
+                return JsonResponse({'error': 'task_uid is required'}, status=400)
+            
+            task = Task.nodes.get_or_none(uid=task_uid)
+            if not task:
+                return JsonResponse({'error': 'Task not found'}, status=404)
+            
+            task.delete()
+            return JsonResponse({'message': 'Task deleted successfully'}, status=200)
+        except Exception as e:
+            print(f"Delete Task Error: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=405)

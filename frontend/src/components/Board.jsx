@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
-import { tasks } from '../api';
-import { Plus, MoreHorizontal, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { tasks, projects } from '../api';
+import { Plus, MoreHorizontal, Clock, AlertCircle, CheckCircle2, Trash2, User as UserIcon } from 'lucide-react';
 
 const Board = ({ project }) => {
     const [taskList, setTaskList] = useState([]);
+    const [members, setMembers] = useState([]);
     const [showNewTaskId, setShowNewTaskId] = useState(null);
-    const [newTaskTitle, setNewTaskTitle] = useState('');
+    const [newTask, setNewTask] = useState({ title: '', priority: 'MEDIUM', assignee_uid: '' });
 
     useEffect(() => {
         if (project) {
             loadTasks();
+            loadMembers();
         }
     }, [project]);
 
@@ -22,11 +24,26 @@ const Board = ({ project }) => {
         }
     };
 
-    const handleCreateTask = async (status) => {
-        if (!newTaskTitle.trim()) return;
+    const loadMembers = async () => {
         try {
-            await tasks.create(project.uid, newTaskTitle, '', 'MEDIUM', null);
-            setNewTaskTitle('');
+            const res = await projects.getMembers(project.uid);
+            setMembers(res.data.members);
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleCreateTask = async (status) => {
+        if (!newTask.title.trim()) return;
+        try {
+            await tasks.create(
+                project.uid,
+                newTask.title,
+                '',
+                newTask.priority,
+                newTask.assignee_uid || null
+            );
+            setNewTask({ title: '', priority: 'MEDIUM', assignee_uid: '' });
             setShowNewTaskId(null);
             loadTasks();
         } catch (err) {
@@ -37,6 +54,16 @@ const Board = ({ project }) => {
     const handleMoveTask = async (taskUid, newStatus) => {
         try {
             await tasks.updateStatus(taskUid, newStatus);
+            loadTasks();
+        } catch (err) {
+            console.error(err);
+        }
+    };
+
+    const handleDeleteTask = async (taskUid) => {
+        if (!window.confirm('Are you sure you want to delete this task?')) return;
+        try {
+            await tasks.delete(taskUid);
             loadTasks();
         } catch (err) {
             console.error(err);
@@ -87,12 +114,10 @@ const Board = ({ project }) => {
                                     border: '1px solid var(--glass-border)',
                                     boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                                     transition: 'all 0.2s ease',
-                                    cursor: 'pointer'
+                                    position: 'relative'
                                 }}
-                                onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(99, 102, 241, 0.3)'}
-                                onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--glass-border)'}
                             >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', alignItems: 'center' }}>
                                     <span style={{
                                         fontSize: '0.65rem',
                                         fontWeight: 700,
@@ -103,24 +128,48 @@ const Board = ({ project }) => {
                                         textTransform: 'uppercase',
                                         letterSpacing: '0.05em'
                                     }}>
-                                        {task.priority || 'MEDIUM'}
+                                        {task.status === 'DONE' ? 'DONE' : (task.priority || 'MEDIUM')}
                                     </span>
+                                    <button
+                                        onClick={() => handleDeleteTask(task.uid)}
+                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                                        onMouseEnter={e => e.currentTarget.style.color = 'var(--danger)'}
+                                        onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
 
                                 <div style={{ marginBottom: '1.25rem', fontSize: '0.95rem', fontWeight: 500, color: 'var(--text)' }}>
                                     {task.title}
                                 </div>
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
-                                    {col.id !== 'TODO' && (
-                                        <button onClick={() => handleMoveTask(task.uid, 'TODO')} style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', borderRadius: '6px', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', cursor: 'pointer' }}>Todo</button>
-                                    )}
-                                    {col.id !== 'IN_PROGRESS' && (
-                                        <button onClick={() => handleMoveTask(task.uid, 'IN_PROGRESS')} style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', borderRadius: '6px', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', cursor: 'pointer' }}>Prog</button>
-                                    )}
-                                    {col.id !== 'DONE' && (
-                                        <button onClick={() => handleMoveTask(task.uid, 'DONE')} style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', borderRadius: '6px', background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer' }}>Done</button>
-                                    )}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--glass-border)', paddingTop: '1rem' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        {task.assignee ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                                                <div style={{ width: '20px', height: '20px', borderRadius: '50%', background: 'var(--primary)', display: 'flex', justifyContent: 'center', alignItems: 'center', color: 'white', fontSize: '0.6rem', fontWeight: 700 }}>
+                                                    {task.assignee.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                {task.assignee.name}
+                                            </div>
+                                        ) : (
+                                            <div style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.75rem' }}>
+                                                <UserIcon size={12} /> Unassigned
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                                        {col.id !== 'TODO' && (
+                                            <button onClick={() => handleMoveTask(task.uid, 'TODO')} style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', cursor: 'pointer' }}>Todo</button>
+                                        )}
+                                        {col.id !== 'IN_PROGRESS' && (
+                                            <button onClick={() => handleMoveTask(task.uid, 'IN_PROGRESS')} style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'var(--glass)', border: '1px solid var(--glass-border)', color: 'var(--text-muted)', cursor: 'pointer' }}>Prog</button>
+                                        )}
+                                        {col.id !== 'DONE' && (
+                                            <button onClick={() => handleMoveTask(task.uid, 'DONE')} style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'var(--primary)', border: 'none', color: 'white', cursor: 'pointer' }}>Done</button>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -129,24 +178,43 @@ const Board = ({ project }) => {
                         {col.id === 'TODO' && (
                             <div style={{ marginTop: '0.5rem' }}>
                                 {showNewTaskId === col.id ? (
-                                    <form
-                                        className="animate-fade"
-                                        onSubmit={(e) => { e.preventDefault(); handleCreateTask(col.id); }}
-                                    >
+                                    <div className="glass-panel animate-fade" style={{ padding: '1rem', background: 'var(--bg-card)' }}>
                                         <input
                                             className="input-field"
-                                            placeholder="What needs to be done?"
-                                            value={newTaskTitle}
-                                            onChange={e => setNewTaskTitle(e.target.value)}
+                                            placeholder="Task title..."
+                                            value={newTask.title}
+                                            onChange={e => setNewTask({ ...newTask, title: e.target.value })}
                                             autoFocus
-                                            onBlur={() => !newTaskTitle && setShowNewTaskId(null)}
-                                            style={{ background: 'var(--bg-card)', marginBottom: '0.5rem' }}
+                                            style={{ background: 'rgba(0,0,0,0.2)', marginBottom: '0.75rem' }}
                                         />
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button type="submit" className="btn-primary" style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }}>Add</button>
-                                            <button type="button" onClick={() => setShowNewTaskId(null)} style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.85rem' }}>Cancel</button>
+                                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                                            <select
+                                                className="input-field"
+                                                style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.2)' }}
+                                                value={newTask.priority}
+                                                onChange={e => setNewTask({ ...newTask, priority: e.target.value })}
+                                            >
+                                                <option value="LOW">Low</option>
+                                                <option value="MEDIUM">Medium</option>
+                                                <option value="HIGH">High</option>
+                                            </select>
+                                            <select
+                                                className="input-field"
+                                                style={{ flex: 1, padding: '0.4rem', fontSize: '0.8rem', background: 'rgba(0,0,0,0.2)' }}
+                                                value={newTask.assignee_uid}
+                                                onChange={e => setNewTask({ ...newTask, assignee_uid: e.target.value })}
+                                            >
+                                                <option value="">Assignee</option>
+                                                {members.map(m => (
+                                                    <option key={m.uid} value={m.uid}>{m.name}</option>
+                                                ))}
+                                            </select>
                                         </div>
-                                    </form>
+                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                            <button onClick={() => handleCreateTask(col.id)} className="btn-primary" style={{ flex: 1, padding: '0.5rem', fontSize: '0.85rem' }}>Add</button>
+                                            <button onClick={() => setShowNewTaskId(null)} style={{ padding: '0.5rem 1rem', background: 'transparent', border: '1px solid var(--glass-border)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '0.85rem', cursor: 'pointer' }}>Cancel</button>
+                                        </div>
+                                    </div>
                                 ) : (
                                     <button
                                         onClick={() => setShowNewTaskId(col.id)}

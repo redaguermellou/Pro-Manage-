@@ -6,7 +6,10 @@ urlpatterns = [
     path('auth/login', views.login, name='login'),
     path('projects/create', views.create_project, name='create_project'),
     path('projects/list', views.get_projects, name='get_projects'),
+    path('projects/members', views.get_project_members, name='get_project_members'),
+    path('projects/add-member', views.add_project_member, name='add_project_member'),
     path('tasks/create', views.create_task, name='create_task'),
     path('tasks/list', views.get_tasks, name='get_tasks'),
     path('tasks/update', views.update_task_status, name='update_task_status'),
+    path('tasks/delete', views.delete_task, name='delete_task'),
 ]
