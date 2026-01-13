@@ -1,0 +1,36 @@
+# Bytesize/Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+ENV/
+env/
+.env
+.venv
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+media/
+static/
+staticfiles/
+
+# Node
+node_modules/
+dist/
+dist-ssr
+*.local
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.bak
+
+# Neo4j
+*.dump
+*.backup
+
+# OS
+.DS_Store
+Thumbs.db
